@@ -1,0 +1,325 @@
+Apache Kafka
+------------
+Apache Kafka is a distributed streaming platform for sending and receiving messages.It is one of the solution for solving the producer and consumer problem.It is a open source framework created by LinedIn initially and they made it open source by moving it to Apache.
+
+Kafka is used for building real time data pipelines and streaming apps.It is horizontally scalable, fault tolorent, wicked fast and runs in production in thousand of companies.
+
+Suppose, if we passes billions and tons of data at the same time and still we want to make it faster.However, queing system is little bit slower like rabbitmqs, ibmmqs etc because of bottleneck in consuming the messages from one side.Even if you publish the data in 10 different sources then it consume the data from only one side.It is also very difficult to scale the mqs as space allocated as per the requirement unless we restructure the queues.It is slightly difficult in existing MQueues set ups.
+
+Kafka cluster is basically the kafka server which controls the messages inflow and outflow.Producers are applications which have designed to push messages and consumers are applications which have designed to consume those messages.Basically, producers push the messages to Kafka server and consumers pull those messages from Kafka server.
+
+Kafka cluster is a collection of servers which individually have some kafka as brokers(n number of brokers) which are there in a pool of kafka system.Those brokers will help in doing load balancing, scaling, and distibuting the messages across the producers and the consumers.
+
+How does kafka manage these brokers because brokers installed in different machines.how does the communication happen i.e. which producer route to which broker and how would it be scale that to discover the services.
+
+--> ZooKeeper service registry comes into picture.ZooKeeper is used to locate the service discovery across the brokers and based on that requests are routed to corresponding brokers.
+
+How is it distributed.
+
+--> Different broker has different server,so that we can scale anytime.We can add new broker at any point of time and then ZooKeeper automatically discover that broker and then uses that broker.
+
+How partition of data done.
+
+--> Kafka server can be partitioned into n number of chunks.And then, those partitioned are linked to the topics.So, topic are basically channel under which the producer can be pushing a data and consumer can get the data from the same topic.Topic is literally associated to a partition and from the partition you can store the data.Lets say if the partition is full then topic can use another partition.So, we don't have to worry about scalling.Scalling based on each topic.We can have single topic which can span across different brokers/partition.That is where the distribution platform is helping in large scale data consumption or data processing.
+
+Consumer group - It is where you can consume messages from the same topic.There is a problem where you published lots of messages in a queue and our consumer is not able to consume the message because of the throwput which is coming inside.So, in this case, we can create consumer group. We basically split the consumer into multiple consumer parties and then we can consume the messages from different partition as your message resides in partition.From the partition consumer consumes those messages.If there are 100 consumers there could be 100 or more partition.Consumer directly picks up the data from the corresponding partition and then process it.If there are 100 and 1000 of producers then they push it into the partition and from the partition consumer picks up the data.Based on the scalability purpose we can increase or decrease the consumers which we need in the consumer group.Suppose, we have less data and we have less partition and we have less consumers and if more data then more partition and more consumers.That is how the kafka ecosystem works as a producer consumer problem.
+
+We produce the data which stored in a Kafka cluster and there are lot of brokers which are distributed.Kafka cluster manages those brokers using ZooKeeper.These messages are pulled by the consumers in terms of groups or individual consumers.
+
+A producerA push messages on to a topic and inside the topic there could be multiple partition and these are consumed by different consumers.Now producerB is pushing the message into the same topic but onto a different partition and that is consumed by different consumer.In this way, the message is processed in a much faster and much quicker fashion.
+
+
+
+
+
+Spring Boot with Spring Kafka Producer Example
+----------------------------------------------
+Link - https://www.youtube.com/watch?v=NjHYWEV_E_o
+
+Git - https://github.com/TechPrimers/spring-boot-kafka-producer-example
+
+Use Case - Create springboot applcation which publish messages onto a kafka topic.Kafka topic will be created locally and run ZooKeeper node along with the ZooKeeper server.We will check from console by consuming that message and also check whether we can publish or not.
+
+--> Create a new spring boot project, add dependencies "kafka" in POM.xml file.There is some module called spring- kafka which spring has created which can be used inside springboot application in order to publish messages by doing so with KafkaTemplate just like RestTemplate.Additionally, we will use spring MVC and will expose web service and we are going to hit that web service and that will publish some message. 
+
+--> In application.properties file, add server.port=8081
+
+--> Create a class UserResource, add 
+ @Autowired
+ private KafkaTemplate<String, User> kafkaTemplate;
+(It is just like RestTemplate, so spring will bydefault take care of)
+kafka template publish message onto the kafka topic.
+
+@RestController
+@RequestMapping("kafka")
+public class UserResource {
+
+    @Autowired
+    private KafkaTemplate<String, String> kafkaTemplate;
+
+    private static final String TOPIC = "Kafka_Example";
+
+    @GetMapping("/publish/{message}")
+    public String post(@PathVariable("message") final String message) {
+
+        kafkaTemplate.send(TOPIC, message);
+
+        return "Published successfully";
+    }
+}
+
+
+--> We need to start the kafta instance.Inorder to bring up the kafka server we need to create the zookeeper instance because kafka uses zookeeper.
+Start zookeeper node, bin\zookeeper-server-start.sh config/zookeeper.properties
+Now, start the kafka server, bin\kafka-server-start.sh config/server.properties
+So, once the kafka server is started then we should be able to start our consumer as well.
+
+--> We need to create the topic, so once the kafka server is up now we can create the kafka topic.
+bin/kafka-topics.sh --create --zooker localhost:2181 --replication-factor 1 --partitions 1 --topic kafka_example
+(topic name).
+This will create a topic for us.So, once the topic created we can publish it. But before that, we can consume from this particular topic so that we can see the messages are getting posted or not.
+
+--> Create a consumer which will connect to this particular topic and it will show what messages are coming in.
+bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic kafka_example --from-beginning
+
+--> Start springboot application, http://localhost:8081/kafka/publish/Hello(message) the we will notice the message is published successfully.
+This is how we can publish the message on to kafka topic. This is the string message published.
+
+--> Create json message - For this, create modelof class User
+public class User {
+
+    private String name;
+    private String dept;
+    private Long salary;
+
+    public User(String name, String dept, Long salary) {
+        this.name = name;
+        this.dept = dept;
+        this.salary = salary;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getDept() {
+        return dept;
+    }
+
+    public void setDept(String dept) {
+        this.dept = dept;
+    }
+
+    public Long getSalary() {
+        return salary;
+    }
+
+    public void setSalary(Long salary) {
+        this.salary = salary;
+    }
+}
+
+In the UserResource class, 
+@RestController
+@RequestMapping("kafka")
+public class UserResource {
+
+    @Autowired
+    private KafkaTemplate<String, User> kafkaTemplate;
+
+    private static final String TOPIC = "Kafka_Example";
+
+    @GetMapping("/publish/{name}")
+    public String post(@PathVariable("name") final String name) {
+
+        kafkaTemplate.send(TOPIC, new User(name, "Technology", 12000L));
+
+        return "Published successfully";
+    }
+}
+We need to tell kafka that we need to publish json message.
+
+--> Add configuration
+@Configuration
+public class KakfaConfiguration {
+
+    @Bean
+    public ProducerFactory<String, User> producerFactory() {
+        Map<String, Object> config = new HashMap<>();
+
+        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:9092");
+        config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+
+        return new DefaultKafkaProducerFactory<>(config);
+    }
+
+
+    @Bean
+    public KafkaTemplate<String, User> kafkaTemplate() {
+        return new KafkaTemplate<>(producerFactory());
+    }
+
+
+}
+We have created producer configuration factory where we provided the configuration details i.e. bootstrap server details, key serialization class and the value serialization class.We are going to publish the JSON message, so we are using the json serializer. We are injecting producerFactory on to the kafka template, so that kafka template can used inside resource directory.
+
+--> Restart the springboot application, http://localhost:8081/kafka/publish/Peter and it published successfully.
+
+This is how we published json custom message.We used kafka template in order to communicate with kafka server.
+
+Spring Boot with Spring Kafka Consumer Example
+----------------------------------------------
+Link - https://www.youtube.com/watch?v=IncG0_XSSBg
+
+Git - https://github.com/TechPrimers/spring-boot-kafka-consumer-example
+
+Use Case - Consume messages from the kafka topic from springboot application
+
+--> Create a new spring boot project, add "kafka" and "jackson-databind(2.6.7)" dependencies in POM.xml file.
+
+--> In application.properties file, add server.port=8081
+
+--> Add configuration
+@EnableKafka
+@Configuration
+public class KafkaConfiguration {
+
+    @Bean
+    public ConsumerFactory<String, String> consumerFactory() {
+        Map<String, Object> config = new HashMap<>();
+
+        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:9092");
+        config.put(ConsumerConfig.GROUP_ID_CONFIG, "group_id");
+        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+
+        return new DefaultKafkaConsumerFactory<>(config);
+    }
+
+	//inject consumer factory into concurrentkafkalistenercontainerfactory.
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory();
+        factory.setConsumerFactory(consumerFactory());
+        return factory;
+    }
+
+
+    @Bean
+    public ConsumerFactory<String, User> userConsumerFactory() {
+        Map<String, Object> config = new HashMap<>();
+
+        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:9092");
+        config.put(ConsumerConfig.GROUP_ID_CONFIG, "group_json");
+        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+        return new DefaultKafkaConsumerFactory<>(config, new StringDeserializer(),
+                new JsonDeserializer<>(User.class));
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, User> userKafkaListenerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, User> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(userConsumerFactory());
+        return factory;
+    }
+
+}
+Inject consumer factory into concurrentkafkalistenercontainerfactory.We are set with the configuration
+@EnableKafka - spring will keep an eye on all the kafka listners.Springboot need to scan and check for the listners.
+
+--> Go to listner class 
+    
+    @Service
+    public class KafkaConsumer {
+    
+        @KafkaListener(topics = "Kafka_Example", group = "group_id")
+        public void consume(String message) {
+            System.out.println("Consumed message: " + message);
+        }
+    
+    
+        @KafkaListener(topics = "Kafka_Example_json", group = "group_json",
+                containerFactory = "userKafkaListenerFactory")
+        public void consumeJson(User user) {
+            System.out.println("Consumed JSON Message: " + user);
+        }
+    }
+@KafkaListner annotation - Whenever there is a message in kafka topic this particular listner will be called, so that the message can be directly accessed here.
+
+--> Zookeeper and Kafka cluster running.
+Start producer - bin/kafka-console-producer.sh --broker-list localhost:9092 --topic Kafka_Example
+Now, kafka producer is ready to publish the message
+hello youtube(type message)
+See the message in the console.
+All the messages are pushed to the kafka.Automatically, these are getting consumed using the kafkaListner and getting printed in console.
+
+--> 
+For consuming json message, create a model class User
+public class User {
+
+    private String name;
+    private String dept;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getDept() {
+        return dept;
+    }
+
+    public void setDept(String dept) {
+        this.dept = dept;
+    }
+
+    public User() {
+    }
+
+    public User(String name, String dept) {
+
+        this.name = name;
+        this.dept = dept;
+    }
+
+    @Override
+    public String toString() {
+        final StringBuffer sb = new StringBuffer("User{");
+        sb.append("name='").append(name).append('\'');
+        sb.append(", dept='").append(dept).append('\'');
+        sb.append('}');
+        return sb.toString();
+    }
+}
+
+--> Inject this model into the configuration, so follow the configuration class above.
+
+--> Use the userConsumerFactory in kafkaaConsumer class.
+Here, public void ConsumeJson(User user) - user message get deserialized and comes on to this
+
+--> Create a new topic - bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factorrtitions 1 --topic Kafka_Example
+history | grep create
+bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factorrtitions 1 --topic Kafka_Example_json
+history | grep producer
+Just run the producer on this topic
+bin/kafka-console-producer.sh --broker-localhost:9092 --topic Kafka_Example_Json
+Once this topic is created we just consumed message from this particular topic.
+
+Now, we can publish the json message on to the new topic from the console.
+--> Restart the springboot application, two containers Kafka-Example-0 and Kafka-Example-json-0 containers has been registered as we can see in the console.
+
+--> Now, publish the json message {name: "Sam", dept: "Technology"}.This json message pushed on to Kafka and it come to KafkaListner directly.Now, it consumed json message : User{name: "Sam", dept: "Technology"}.
+Both JSON and String messages should come to different listners as listed.
+
+--> We have two different listners in the consumer with two different topics and two different groups and with different container.If you don't provide the container then it will choose the default one.
+
+
